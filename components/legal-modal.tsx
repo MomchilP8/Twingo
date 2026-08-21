@@ -68,7 +68,7 @@ export function LegalModal({
 
               <h3 className="text-base font-semibold text-foreground">4. Вашите права</h3>
               <p>
-                Имате право по всяко време да прегледате, редактирате или поискате изтриване на профила и личните си данни чрез менюто „Моят Профил“ или като се свържете с нас на <span className="text-foreground font-medium">momchilparpulev20a@gmail.com</span>.
+                Имате право по всяко време да прегледате, редактирате или поискате изтриване на профила и личните си данни чрез менюто „Моят Профил“ или като се свържете с нас на <span className="text-foreground font-medium">twingobulgaria@gmail.com</span>.
               </p>
             </div>
           </div>
