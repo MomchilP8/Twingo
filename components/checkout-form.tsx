@@ -282,7 +282,7 @@ export function CheckoutForm({
                   </label>
                   <input
                     required
-                    placeholder="напр. Момчил"
+                    placeholder="напр. Иван"
                     value={firstName}
                     onChange={(e) => setFirstName(e.target.value)}
                     className={inputClass}
@@ -294,7 +294,7 @@ export function CheckoutForm({
                   </label>
                   <input
                     required
-                    placeholder="напр. Парпулев"
+                    placeholder="напр. Иванов"
                     value={lastName}
                     onChange={(e) => setLastName(e.target.value)}
                     className={inputClass}
