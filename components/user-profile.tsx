@@ -394,6 +394,100 @@ export function UserProfileDashboard({
 
       {/* Tab Content Area */}
       <div className="mt-8">
+        {/* ================= TAB 3: Personal Information ================= */}
+        {activeTab === 'personal' && (
+          <section className="max-w-2xl space-y-6">
+            <div>
+              <h2 className="text-xl font-extrabold md:text-2xl">Моите данни</h2>
+              <p className="text-xs sm:text-sm text-muted-foreground">
+                Управлявайте вашата лична информация и контакти.
+              </p>
+            </div>
+
+            {personalNotice && (
+              <div className="flex items-center gap-2 rounded-2xl border border-emerald-300 bg-emerald-50 p-4 text-xs sm:text-sm font-semibold text-emerald-800">
+                <CheckCircle2 size={18} className="shrink-0" />
+                <span>{personalNotice}</span>
+              </div>
+            )}
+
+            {personalError && (
+              <div className="flex items-center gap-2 rounded-2xl border border-destructive/30 bg-destructive/10 p-4 text-xs sm:text-sm font-semibold text-destructive">
+                <AlertCircle size={18} className="shrink-0" />
+                <span>{personalError}</span>
+              </div>
+            )}
+
+            <form
+              onSubmit={handleSavePersonal}
+              className="space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-8"
+            >
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1.5 block text-xs font-bold text-muted-foreground">
+                    Собствено име *
+                  </label>
+                  <input
+                    required
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    placeholder="Иван"
+                    className="w-full min-h-[48px] rounded-2xl border border-border bg-background px-4 py-3 text-sm focus:border-accent focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-xs font-bold text-muted-foreground">
+                    Фамилия *
+                  </label>
+                  <input
+                    required
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    placeholder="Иванов"
+                    className="w-full min-h-[48px] rounded-2xl border border-border bg-background px-4 py-3 text-sm focus:border-accent focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-xs font-bold text-muted-foreground">
+                  Телефонен номер * (за доставка с Еконт)
+                </label>
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="0888 123 456"
+                  className="w-full min-h-[48px] rounded-2xl border border-border bg-background px-4 py-3 text-sm focus:border-accent focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-xs font-bold text-muted-foreground">
+                  Имейл адрес (акаунт)
+                </label>
+                <input
+                  disabled
+                  value={user?.email || ''}
+                  className="w-full min-h-[48px] rounded-2xl border border-border bg-muted px-4 py-3 text-sm text-muted-foreground cursor-not-allowed"
+                />
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Имейлът е свързан с вашия Firebase профил за сигурност.
+                </p>
+              </div>
+
+              <div className="pt-4">
+                <button
+                  type="submit"
+                  disabled={savingPersonal}
+                  className="min-h-[48px] w-full sm:w-auto rounded-full bg-primary px-8 py-3 text-xs sm:text-sm font-bold text-primary-foreground transition hover:opacity-90 disabled:opacity-50 active:scale-95 shadow-md"
+                >
+                  {savingPersonal ? 'Запазване…' : 'Запази промените'}
+                </button>
+              </div>
+            </form>
+          </section>
+        )}
         {/* ================= TAB 1: My Orders ================= */}
         {activeTab === 'orders' && (
           <section className="space-y-6">
@@ -462,7 +556,7 @@ export function UserProfileDashboard({
                               {order.items.length === 1 ? 'продукт' : 'продукта'}
                             </p>
                             <p className="text-lg font-black text-foreground">
-                              {money(order.totalCents)}
+                              {money(Math.round(order.totalCents / 100))}
                             </p>
                           </div>
                           <button
@@ -577,100 +671,7 @@ export function UserProfileDashboard({
           </section>
         )}
 
-        {/* ================= TAB 3: Personal Information ================= */}
-        {activeTab === 'personal' && (
-          <section className="max-w-2xl space-y-6">
-            <div>
-              <h2 className="text-xl font-extrabold md:text-2xl">Моите данни</h2>
-              <p className="text-xs sm:text-sm text-muted-foreground">
-                Управлявайте вашата лична информация и контакти.
-              </p>
-            </div>
-
-            {personalNotice && (
-              <div className="flex items-center gap-2 rounded-2xl border border-emerald-300 bg-emerald-50 p-4 text-xs sm:text-sm font-semibold text-emerald-800">
-                <CheckCircle2 size={18} className="shrink-0" />
-                <span>{personalNotice}</span>
-              </div>
-            )}
-
-            {personalError && (
-              <div className="flex items-center gap-2 rounded-2xl border border-destructive/30 bg-destructive/10 p-4 text-xs sm:text-sm font-semibold text-destructive">
-                <AlertCircle size={18} className="shrink-0" />
-                <span>{personalError}</span>
-              </div>
-            )}
-
-            <form
-              onSubmit={handleSavePersonal}
-              className="space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-8"
-            >
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <label className="mb-1.5 block text-xs font-bold text-muted-foreground">
-                    Собствено име *
-                  </label>
-                  <input
-                    required
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
-                    placeholder="Момчил"
-                    className="w-full min-h-[48px] rounded-2xl border border-border bg-background px-4 py-3 text-sm focus:border-accent focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1.5 block text-xs font-bold text-muted-foreground">
-                    Фамилия *
-                  </label>
-                  <input
-                    required
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                    placeholder="Парпулев"
-                    className="w-full min-h-[48px] rounded-2xl border border-border bg-background px-4 py-3 text-sm focus:border-accent focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="mb-1.5 block text-xs font-bold text-muted-foreground">
-                  Телефонен номер * (за доставка с Еконт)
-                </label>
-                <input
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="0888 123 456"
-                  className="w-full min-h-[48px] rounded-2xl border border-border bg-background px-4 py-3 text-sm focus:border-accent focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="mb-1.5 block text-xs font-bold text-muted-foreground">
-                  Имейл адрес (акаунт)
-                </label>
-                <input
-                  disabled
-                  value={user?.email || ''}
-                  className="w-full min-h-[48px] rounded-2xl border border-border bg-muted px-4 py-3 text-sm text-muted-foreground cursor-not-allowed"
-                />
-                <p className="mt-1 text-[11px] text-muted-foreground">
-                  Имейлът е свързан с вашия Firebase профил за сигурност.
-                </p>
-              </div>
-
-              <div className="pt-4">
-                <button
-                  type="submit"
-                  disabled={savingPersonal}
-                  className="min-h-[48px] w-full sm:w-auto rounded-full bg-primary px-8 py-3 text-xs sm:text-sm font-bold text-primary-foreground transition hover:opacity-90 disabled:opacity-50 active:scale-95 shadow-md"
-                >
-                  {savingPersonal ? 'Запазване…' : 'Запази промените'}
-                </button>
-              </div>
-            </form>
-          </section>
-        )}
+        
 
         {/* ================= TAB 4: Preferred Econt Office ================= */}
         {activeTab === 'delivery' && (

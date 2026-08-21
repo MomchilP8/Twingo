@@ -2,59 +2,87 @@ import { NextResponse } from 'next/server'
 import { FieldValue } from 'firebase-admin/firestore'
 import { adminAuth, adminDb } from '@/lib/firebase-admin'
 import { extractToken } from '@/lib/server-auth'
+import { PRODUCTS } from '@/lib/products'
 import type { OrderStatus } from '@/lib/store-types'
 
-const text = (value: unknown) => (typeof value === 'string' ? value.trim() : '')
+const clean = (value: unknown) => (typeof value === 'string' ? value.trim() : '')
 
 export async function POST(request: Request) {
   try {
     const token = await extractToken(request)
     if (!token) {
-      return NextResponse.json({ error: 'Влезте в профила си преди поръчка.' }, { status: 401 })
+      return NextResponse.json(
+        { error: 'Моля, влезте в профила си преди да завършите поръчката.' },
+        { status: 401 }
+      )
     }
 
-    const decoded = await adminAuth.verifyIdToken(token, true)
-    const body = await request.json() as {
-      items?: Array<{ id?: string; quantity?: number }>
-      customer?: {
-        firstName?: string
-        lastName?: string
-        phone?: string
-        email?: string
-      }
-      econtOffice?: {
-        id?: string | number
-        name?: string
-        city?: string
-        address?: string
-        workingHours?: string
-      }
+    let decoded: { uid: string; email?: string }
+    try {
+      decoded = await adminAuth.verifyIdToken(token, true)
+    } catch {
+      return NextResponse.json(
+        { error: 'Сесията ви е изтекла. Моля, влезте отново в профила си.' },
+        { status: 401 }
+      )
     }
 
-    const items = Array.isArray(body.items) ? body.items : []
-    const customer = body.customer ?? {}
-    const office = body.econtOffice ?? {}
+    let body: Record<string, unknown>
+    try {
+      body = (await request.json()) as Record<string, unknown>
+    } catch {
+      return NextResponse.json({ error: 'Невалидни данни за поръчката.' }, { status: 400 })
+    }
+
+    const items = Array.isArray(body.items) ? (body.items as Array<{ id?: string; quantity?: number }>) : []
+    const customer = (body.customer as Record<string, unknown>) ?? {}
+    const office = (body.econtOffice as Record<string, unknown>) ?? {}
 
     if (!items.length) {
-      return NextResponse.json({ error: 'Количката е празна.' }, { status: 400 })
+      return NextResponse.json({ error: 'Количката ви е празна.' }, { status: 400 })
     }
 
-    const firstName = text(customer.firstName)
-    const lastName = text(customer.lastName)
-    const phone = text(customer.phone)
-    const email = text(customer.email) || text(decoded.email)
+    const firstName = clean(customer.firstName)
+    const lastName = clean(customer.lastName)
+    const phone = clean(customer.phone)
+    const email = clean(customer.email) || clean(decoded.email)
 
-    if (!firstName || !lastName || !phone || !email) {
-      return NextResponse.json({ error: 'Моля, попълнете всички данни за клиента (Име, Фамилия, Телефон, Имейл).' }, { status: 400 })
+    // Validations
+    if (!firstName || firstName.length < 2) {
+      return NextResponse.json(
+        { error: 'Моля, въведете валидно собствено име (минимум 2 букви).' },
+        { status: 400 }
+      )
+    }
+    if (!lastName || lastName.length < 2) {
+      return NextResponse.json(
+        { error: 'Моля, въведете валидна фамилия (минимум 2 букви).' },
+        { status: 400 }
+      )
+    }
+    if (!phone || phone.replace(/\D/g, '').length < 7) {
+      return NextResponse.json(
+        { error: 'Моля, въведете валиден телефонен номер (напр. 0888 123 456).' },
+        { status: 400 }
+      )
+    }
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return NextResponse.json(
+        { error: 'Моля, въведете валиден имейл адрес.' },
+        { status: 400 }
+      )
     }
 
-    const officeName = text(office.name)
-    const officeCity = text(office.city)
-    const officeAddress = text(office.address)
+    const officeName = clean(office.name)
+    const officeCity = clean(office.city)
+    const officeAddress = clean(office.address)
     const officeId = office.id ?? ''
 
     if (!officeName || !officeCity) {
-      return NextResponse.json({ error: 'Моля, изберете конкретен офис на Еконт от списъка.' }, { status: 400 })
+      return NextResponse.json(
+        { error: 'Моля, изберете конкретен офис на Еконт от списъка.' },
+        { status: 400 }
+      )
     }
 
     const orderRef = adminDb.collection('orders').doc()
@@ -72,48 +100,78 @@ export async function POST(request: Request) {
 
     await adminDb.runTransaction(async (transaction) => {
       for (const item of items) {
-        const id = text(item.id)
-        const quantity = Number(item.quantity) || 1
-        if (!id || quantity < 1) {
-          throw new Error('Невалиден артикул в количката.')
-        }
+        const id = clean(item.id)
+        const quantity = Math.max(1, Number(item.quantity) || 1)
+        if (!id) continue
 
         const productRef = adminDb.doc(`products/${id}`)
         const productSnap = await transaction.get(productRef)
 
-        if (!productSnap.exists) {
-          // If not in firestore yet, check if product is valid
-          throw new Error(`Продуктът не е намерен в базата.`)
+        let productName = id
+        let priceCents = 0
+        let image = ''
+        let currentStock = 50
+
+        if (productSnap.exists) {
+          const pData = productSnap.data()!
+          if (pData.active === false) {
+            throw new Error(`Продуктът "${pData.name || id}" вече не е наличен.`)
+          }
+          productName = clean(pData.name) || id
+          priceCents = Number(pData.priceCents) || 0
+          image = clean(pData.image)
+          currentStock = Number(pData.stock ?? 10)
+
+          if (currentStock < quantity) {
+            throw new Error(`Няма достатъчна наличност от "${productName}". Налични: ${currentStock} бр.`)
+          }
+
+          transaction.update(productRef, {
+            stock: Math.max(0, currentStock - quantity),
+            updatedAt: FieldValue.serverTimestamp(),
+          })
+        } else {
+          // Fallback to static catalog definition if not yet created in Firestore
+          const staticP = PRODUCTS.find((p) => p.id === id)
+          if (staticP) {
+            productName = staticP.name
+            priceCents = Math.round(staticP.price * 100)
+            image = staticP.image
+            currentStock = staticP.stock
+
+            transaction.set(productRef, {
+              name: staticP.name,
+              category: staticP.category,
+              brand: staticP.brand,
+              priceCents,
+              stock: Math.max(0, currentStock - quantity),
+              image: staticP.image,
+              description: staticP.description,
+              badge: staticP.badge || '',
+              active: true,
+              createdAt: FieldValue.serverTimestamp(),
+              updatedAt: FieldValue.serverTimestamp(),
+            })
+          } else {
+            priceCents = 2900
+          }
         }
 
-        const product = productSnap.data()!
-        if (product.active === false) {
-          throw new Error(`Продуктът "${product.name || id}" вече не е наличен.`)
-        }
-
-        const currentStock = Number(product.stock ?? 0)
-        if (currentStock < quantity) {
-          throw new Error(`Няма достатъчна наличност от "${product.name}". Налични: ${currentStock} бр.`)
-        }
-
-        // Deduct stock in transaction
-        transaction.update(productRef, {
-          stock: currentStock - quantity,
-          updatedAt: FieldValue.serverTimestamp(),
-        })
-
-        const priceCents = Number(product.priceCents ?? 0)
         const itemTotalCents = priceCents * quantity
         calculatedTotalCents += itemTotalCents
 
         validatedItems.push({
           id,
-          name: text(product.name),
+          name: productName,
           quantity,
           priceCents,
           totalCents: itemTotalCents,
-          image: text(product.image),
+          image,
         })
+      }
+
+      if (validatedItems.length === 0) {
+        throw new Error('Няма валидни артикули за поръчка.')
       }
 
       const initialStatus: OrderStatus = 'pending'
@@ -143,7 +201,7 @@ export async function POST(request: Request) {
         econtOfficeName: officeName,
         econtOfficeAddress: officeAddress || officeName,
         city: officeCity,
-        workingHours: text(office.workingHours),
+        workingHours: clean(office.workingHours),
         orderStatus: initialStatus,
         stockReserved: true,
         createdAt: FieldValue.serverTimestamp(),
@@ -164,7 +222,12 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error('[Create Order Error]:', error)
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Поръчката не можа да бъде създадена.' },
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : 'Възникна грешка при създаване на поръчката.',
+      },
       { status: 400 }
     )
   }
