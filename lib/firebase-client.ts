@@ -3,7 +3,10 @@ import { browserLocalPersistence, getAuth, setPersistence, type Auth } from 'fir
 import { getFirestore, type Firestore } from 'firebase/firestore'
 
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY ?? process.env.apiKey,
+  apiKey:
+    process.env.NEXT_PUBLIC_FIREBASE_API_KEY ??
+    process.env.apiKey ??
+    'AIzaSyDqQvIVffgwRObf-IpYQI8Wd6h9xYqx910',
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN ?? 'twingo-dfd29.firebaseapp.com',
   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ?? 'twingo-dfd29',
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ?? 'twingo-dfd29.firebasestorage.app',
@@ -12,8 +15,16 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID ?? 'G-STDTXLZPPQ',
 }
 
-const browserApp = typeof window === 'undefined' ? null : (getApps().length ? getApp() : initializeApp(firebaseConfig))
+const browserApp =
+  typeof window === 'undefined'
+    ? null
+    : getApps().length
+    ? getApp()
+    : initializeApp(firebaseConfig)
+
 export const firebaseApp = browserApp as FirebaseApp
 export const auth = (browserApp ? getAuth(browserApp) : null) as Auth
 export const db = (browserApp ? getFirestore(browserApp) : null) as Firestore
-export const authPersistence = browserApp ? setPersistence(auth, browserLocalPersistence) : Promise.resolve()
+export const authPersistence = browserApp
+  ? setPersistence(auth, browserLocalPersistence)
+  : Promise.resolve()
